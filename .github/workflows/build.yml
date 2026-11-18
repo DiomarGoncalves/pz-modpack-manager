@@ -1,0 +1,85 @@
+# Compila o PZ Modpack Manager em versoes portateis:
+#   - Windows: ModpackServidor.exe
+#   - Linux:   ModpackServidor-x86_64.AppImage (e o binario ModpackServidor)
+# A cada push: os arquivos ficam em Actions > (a execucao) > Artifacts.
+# Tag "v*" (ex.: git tag v1.0.1 && git push --tags): cria a Release com os arquivos anexados.
+name: Build
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Dependencias
+        run: python -m pip install pyinstaller pillow
+      - name: Compilar .exe
+        run: >
+          pyinstaller --noconfirm --clean --onefile --windowed --name ModpackServidor
+          --icon build/icone.ico --add-data "preview_padrao.png;."
+          --hidden-import PIL._tkinter_finder modpack_gui.py
+      - name: Compilar launcher (.exe)
+        run: >
+          pyinstaller --noconfirm --clean --onefile --windowed --name PZLauncher
+          --icon build/icone.ico --hidden-import PIL._tkinter_finder launcher_gui.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ModpackServidor-Windows
+          path: |
+            dist/ModpackServidor.exe
+            dist/PZLauncher.exe
+
+  linux:
+    # Ubuntu 22.04: glibc mais antiga = o binario roda em mais distros.
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencias
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-tk python3-pip libfuse2 file
+          python3 -m pip install --user pyinstaller pillow
+          wget -q -O appimagetool https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x appimagetool
+      - name: Compilar binario e AppImage
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          APPIMAGETOOL="$PWD/appimagetool" bash build/build_linux.sh
+          NOME=PZLauncher ENTRADA=launcher_gui.py TITULO="PZ Modpack Launcher" APPIMAGETOOL="$PWD/appimagetool" bash build/build_linux.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ModpackServidor-Linux
+          path: |
+            dist/ModpackServidor
+            dist/ModpackServidor-x86_64.AppImage
+            dist/PZLauncher-x86_64.AppImage
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [windows, linux]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: arquivos
+      - uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            arquivos/ModpackServidor-Windows/ModpackServidor.exe
+            arquivos/ModpackServidor-Linux/ModpackServidor-x86_64.AppImage
+            arquivos/ModpackServidor-Linux/ModpackServidor
+            arquivos/ModpackServidor-Windows/PZLauncher.exe
+            arquivos/ModpackServidor-Linux/PZLauncher-x86_64.AppImage

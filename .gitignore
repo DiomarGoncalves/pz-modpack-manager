@@ -1,0 +1,17 @@
+# Dados de quem usa (cada pessoa tem os seus modpacks e pastas)
+packs/
+config_local.json
+ModpackServidor_dados/
+steamcmd/
+pronto/
+pronto_nosteam/
+*_nosteam.zip
+*.zip.parcial
+
+# Compilacao
+dist/
+__pycache__/
+*.spec
+
+# cache das paginas da Steam (dependencias)
+cache_dependencias.json
