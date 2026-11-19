@@ -8,9 +8,9 @@ Um programa separado, distribuído junto com o PZ Modpack Manager no mesmo repos
 
 ## Decisões (com o Diomar, 15/11/2026)
 
-- **Mods na pasta que não estão no modpack:** vão para um **backup**, `Zomboid/mods_removidos/<data>/`. Não são apagados.
+- **Mods na pasta que não estão no modpack:** são **apagados** (decisão de 18/11/2026; antes iam para um backup).
 - **Formato:** um **programa completo e separado**, que **se atualiza sozinho**. Ele confere os modpacks ao abrir e de tempos em tempos, e também confere a versão nova do próprio launcher nas Releases do GitHub.
-- **Modpacks:** **um ativo por vez**. Dá para cadastrar vários e alternar entre eles. Os mods do pack que sai ficam **estacionados** em `Zomboid/PZLauncher/estacionados/<pack>/` e voltam quando ele for ativado de novo; aí só se baixa o que mudou.
+- **Modpacks:** **um ativo por vez**. Dá para cadastrar vários e alternar entre eles. Ao trocar, os mods do pack que sai são apagados. Só o botão **Desativar** guarda os mods em `Zomboid/PZLauncher/estacionados/<pack>/`, para jogar na Steam; eles voltam sem baixar.
 
 ## O que foi testado com o link real (`ModpackPiveteServer.zip` no Drive)
 
@@ -33,7 +33,7 @@ Um programa separado, distribuído junto com o PZ Modpack Manager no mesmo repos
 3. **O que fazer:**
    - **baixar:** arquivos que faltam ou com CRC diferente;
    - **apagar:** arquivos dentro das pastas do pack que não estão mais no pack;
-   - **mover para o backup:** pastas de `mods/` que não são do pack ativo nem estão estacionadas.
+   - **apagar:** pastas de `mods/` que não são do pack ativo.
 4. **Baixar só o necessário:**
    - juntar os trechos vizinhos num pedido só (com um espaço de até 1 MB entre eles, e no máximo 64 MB por pedido);
    - em cada arquivo, pular o cabeçalho local (30 bytes, mais o nome e o extra);

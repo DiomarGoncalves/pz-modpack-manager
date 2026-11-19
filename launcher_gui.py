@@ -103,8 +103,7 @@ class Launcher(tk.Tk):
                                    ("Verificar atualizações", self.verificar_tudo, "TButton"),
                                    ("Desativar (jogar na Steam)", self.desativar, "TButton"),
                                    ("Remover da lista", self.remover, "TButton"),
-                                   ("Abrir pasta mods", lambda: abrir(os.path.join(self.zomboid, "mods")), "TButton"),
-                                   ("Abrir backup", lambda: abrir(os.path.join(self.zomboid, "mods_removidos")), "TButton")):
+                                   ("Abrir pasta mods", lambda: abrir(os.path.join(self.zomboid, "mods")), "TButton")):
             ttk.Button(lado, text=texto, command=cmd, style=estilo, width=26).pack(fill="x", pady=3)
         ttk.Checkbutton(lado, text="Atualizar sozinho", variable=self.auto).pack(anchor="w", pady=(12, 0))
         ttk.Label(lado, text="(confere ao abrir e a cada\n%d minutos)" % INTERVALO_MIN, style="Sutil.TLabel").pack(anchor="w")
@@ -152,8 +151,8 @@ class Launcher(tk.Tk):
         self.preencher()
         self.tabela.selection_set(pid)
         if messagebox.askyesno("Adicionar modpack", "Ativar e instalar '%s' agora?\n\nA pasta mods vai ficar igual a "
-                                                    "este modpack. Mods que não fazem parte dele vão para o backup "
-                                                    "(mods_removidos), não são apagados." % nome):
+                                                    "este modpack: os mods que não fazem parte dele (inclusive os de outro "
+                                                    "modpack) são APAGADOS." % nome):
             self.sincronizar(pid)
 
     def ativar(self):
@@ -181,8 +180,8 @@ class Launcher(tk.Tk):
         if not pid or self.ocupado:
             return
         nome = L.config(self.zomboid)["packs"][pid]["nome"]
-        if messagebox.askyesno("Remover", "Tirar '%s' da lista?\n\nSe ele estiver ativo, os mods dele vão para o "
-                                          "backup (mods_removidos)." % nome):
+        if messagebox.askyesno("Remover", "Tirar '%s' da lista?\n\nSe ele estiver ativo, os mods dele são "
+                                          "apagados da pasta mods." % nome):
             L.remover_pack(self.zomboid, pid)
             self.situacao.pop(pid, None)
             self.preencher()
@@ -249,8 +248,9 @@ class Launcher(tk.Tk):
             self.barra["value"] = 1000
             msg = "'%s' pronto: %d mods. Baixados %d arquivo(s) (%.1f MB), apagados %d." % (
                 nome, r["mods"], r["baixados"], r["bytes"] / 1e6, r["apagados"])
-            if r["backup"]:
-                msg += " Para o backup: %s." % ", ".join(r["backup"][:8])
+            if r["removidos"]:
+                msg += " Apagados da pasta mods: %d (%s%s)." % (len(r["removidos"]), ", ".join(r["removidos"][:6]),
+                                                               "..." if len(r["removidos"]) > 6 else "")
             self.etapa.configure(text=msg)
             self.preencher()
             if not silencioso:

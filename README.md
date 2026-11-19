@@ -59,9 +59,9 @@ Um programa separado, o `PZLauncher.exe` ou `PZLauncher-x86_64.AppImage` nas Rel
 **O que ele faz com a pasta `mods`:**
 - **arquivos de mods que saíram do pack:** são apagados;
 - **arquivos mexidos no PC:** voltam ao original;
-- **mods soltos que não são do pack:** vão para `Zomboid/mods_removidos/<data>/` (não são apagados).
+- **mods que não são do pack** (soltos ou de outro modpack): **são apagados**. A pasta `mods` fica só com o modpack ativo.
 
-**Vários servidores:** dá para cadastrar vários modpacks, mas fica **um ativo por vez**. Ao trocar, os mods do outro ficam guardados e voltam sem baixar de novo.
+**Vários servidores:** dá para cadastrar vários modpacks, mas fica **um ativo por vez**. Ao trocar, os mods do anterior são apagados; voltar para ele baixa de novo.
 
 **Atualiza sozinho:** confere os links ao abrir e a cada 30 minutos, e atualiza o pack ativo se mudou. Também avisa quando sai uma versão nova do próprio launcher.
 

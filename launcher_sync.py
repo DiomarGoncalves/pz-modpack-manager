@@ -2,9 +2,9 @@
 """PZ Modpack Launcher - motor (sem tela). Deixa Zomboid/mods igual a um modpack em .zip (Google Drive
 ou link direto), baixando SO os arquivos que mudaram (le o indice do zip por partes, com HTTP Range).
 
-Um modpack ativo por vez. Os mods do pack que sai ficam "estacionados" em Zomboid/PZLauncher/estacionados/
-e voltam quando ele for ativado de novo. Mods soltos que nao sao de nenhum pack vao para
-Zomboid/mods_removidos/<data>/ (nao sao apagados). Veja PLANO_LAUNCHER.md."""
+Um modpack ativo por vez: ao ativar, a pasta mods fica SO com ele (tudo o que nao e dele e APAGADO, inclusive
+os mods do pack anterior). O botao Desativar guarda os mods do pack em Zomboid/PZLauncher/estacionados/ para
+jogar na Steam; ativar de novo traz de volta sem baixar. Veja PLANO_LAUNCHER.md."""
 import json
 import os
 import re
@@ -335,7 +335,7 @@ def aplicar(fonte, indice, plano, mods_dir, estado, progresso=None):
     estado["pastas"] = sorted(plano["pastas"])
 
 
-# Packs cadastrados, ativo, estacionar e backup --------------------------------------------------------------
+# Packs cadastrados, ativo e estacionar (Desativar) --------------------------------------------------------------
 def config(zomboid):
     return ler_json(os.path.join(pasta_launcher(zomboid), "launcher.json"), {"packs": {}, "ativo": None})
 
@@ -365,15 +365,13 @@ def adicionar_pack(zomboid, nome, link):
 
 
 def remover_pack(zomboid, pack):
-    """Tira o pack da lista. Se for o ativo, os mods dele vao para o backup."""
+    """Tira o pack da lista. Se for o ativo, os mods dele sao apagados da pasta mods."""
     cfg = config(zomboid)
     mods = os.path.join(zomboid, "mods")
     if cfg.get("ativo") == pack:
-        backup = os.path.join(zomboid, "mods_removidos", time.strftime("%Y-%m-%d_%H%M%S"))
         for p in estado_pack(zomboid, pack).get("pastas", []):
-            if os.path.isdir(os.path.join(mods, p)):
-                os.makedirs(backup, exist_ok=True)
-                shutil.move(os.path.join(mods, p), os.path.join(backup, p))
+            if p and os.path.isdir(os.path.join(mods, p)):
+                shutil.rmtree(os.path.join(mods, p), ignore_errors=True)
         cfg["ativo"] = None
     shutil.rmtree(os.path.join(pasta_launcher(zomboid), "estacionados", pack), ignore_errors=True)
     for f in ("estado_%s.json" % pack,):
@@ -393,36 +391,32 @@ def _mover(origem, destino):
 
 
 def preparar_pasta(zomboid, pack, pastas_do_pack):
-    """Antes de sincronizar o pack: estaciona os mods do pack que estava ativo, traz de volta os
-    estacionados deste pack e move para o backup os mods soltos que nao sao deste pack.
-    Devolve (estacionados, restaurados, para_backup)."""
+    """Antes de sincronizar o pack: traz de volta os mods dele que estavam guardados (botao Desativar) e
+    APAGA da pasta mods tudo o que nao e deste pack (mods soltos e os do pack anterior).
+    Devolve (restaurados, apagados)."""
     cfg = config(zomboid)
     mods = os.path.join(zomboid, "mods")
     os.makedirs(mods, exist_ok=True)
     est_dir = os.path.join(pasta_launcher(zomboid), "estacionados")
-    anterior = cfg.get("ativo")
-    estacionados, restaurados, backup_list = [], [], []
-    if anterior and anterior != pack:
-        for p in estado_pack(zomboid, anterior).get("pastas", []):
-            if p not in pastas_do_pack and os.path.isdir(os.path.join(mods, p)):
-                _mover(os.path.join(mods, p), os.path.join(est_dir, anterior, p))
-                estacionados.append(p)
+    restaurados, apagados = [], []
     meu = os.path.join(est_dir, pack)
     if os.path.isdir(meu):
         for p in os.listdir(meu):
             if not os.path.exists(os.path.join(mods, p)):
                 shutil.move(os.path.join(meu, p), os.path.join(mods, p))
                 restaurados.append(p)
-        shutil.rmtree(meu, ignore_errors=True)
-    backup = os.path.join(zomboid, "mods_removidos", time.strftime("%Y-%m-%d_%H%M%S"))
+    shutil.rmtree(est_dir, ignore_errors=True)  # o guardado de outro pack tambem sai: um modpack por vez
     for p in sorted(os.listdir(mods)):
         full = os.path.join(mods, p)
         if os.path.isdir(full) and p not in pastas_do_pack:
-            _mover(full, os.path.join(backup, p))
-            backup_list.append(p)
+            shutil.rmtree(full, ignore_errors=True)
+            apagados.append(p)
+    anterior = cfg.get("ativo")
+    if anterior and anterior != pack and anterior in cfg["packs"]:
+        cfg["packs"][anterior]["versao"] = None  # os mods dele foram apagados: ativar de novo baixa
     cfg["ativo"] = pack
     salvar_config(zomboid, cfg)
-    return estacionados, restaurados, backup_list
+    return restaurados, apagados
 
 
 def desativar(zomboid):
@@ -470,7 +464,7 @@ def sincronizar(zomboid, pack, progresso=None, etapa=None):
         fonte = _baixar_inteiro(p["link"], progresso)
     indice = ler_indice(fonte)
     pastas = {rel.split("/")[0] for rel in arquivos_do_pack(indice).values()}
-    est, rest, bkp = preparar_pasta(zomboid, pack, pastas)
+    rest, apagadas = preparar_pasta(zomboid, pack, pastas)
     mods = os.path.join(zomboid, "mods")
     estado = estado_pack(zomboid, pack)
     diz("Comparando com a pasta mods...")
@@ -483,7 +477,7 @@ def sincronizar(zomboid, pack, progresso=None, etapa=None):
                                "tamanho": fonte.tamanho, "arquivo": fonte.nome})
     salvar_config(zomboid, cfg)
     return {"baixados": len(plano["baixar"]), "bytes": plano["bytes"], "apagados": len(plano["apagar"]),
-            "mods": len(pastas), "estacionados": est, "restaurados": rest, "backup": bkp}
+            "mods": len(pastas), "restaurados": rest, "removidos": apagadas}
 
 
 def _baixar_inteiro(link, progresso=None):
